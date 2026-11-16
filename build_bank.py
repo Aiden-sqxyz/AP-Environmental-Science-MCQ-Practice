@@ -16,6 +16,35 @@ def normalize(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
+def read_stimulus_sets():
+    sets = {}
+    path = Path(__file__).with_name('stimulus_sets.txt')
+    for line in path.read_text().splitlines():
+        if not line or line.startswith('#'):
+            continue
+        unit, ranges = line.split(':', 1)
+        for entry in ranges.split(','):
+            entry = entry.strip()
+            inline = entry.startswith('*')
+            first, _, last = entry.lstrip('*').partition('-')
+            source = f'{unit}-{first}'
+            for number in range(int(first), int(last or first) + 1):
+                id = f'{unit}-{number}'
+                assert id not in sets, ('Overlapping stimulus sets', id)
+                sets[id] = (source, source if not inline else None)
+    return sets
+
+
+def line_text(lines):
+    """Read runs on the same baseline in their left-to-right order."""
+    rows = []
+    for line in lines:
+        if not rows or line[0] - rows[-1][0][0] > 1.8:
+            rows.append([])
+        rows[-1].append(line)
+    return normalize(' '.join(line[4] for row in rows for line in sorted(row, key=lambda item: item[2])))
+
+
 class Book:
     def __init__(self, path, scored=False):
         self.pdf = fitz.open(path)
@@ -94,18 +123,18 @@ class Book:
         return 'data:image/webp;base64,' + base64.b64encode(output.getvalue()).decode()
 
     def region(self, lines, visuals, left=34, force_image=False):
-        text = normalize(' '.join(line[4] for line in lines))
+        text = line_text(lines)
         content = [line[:4] for line in lines] + visuals
         picture = self.image(content, left) if content and (visuals or force_image) else None
         return {'text': text, **({'image': picture} if picture else {})}
 
-    def extract(self, unit, guide):
+    def extract(self, unit, guide, sets):
         assert len(self.numbers) == len(guide.key), (unit, 'booklet and guide length differ')
         questions, contexts = [], {}
         context_start = 0
-        shared = None
-        shared_options = None
         for i, (start, number) in enumerate(self.numbers):
+            id = f'{unit}-{number}'
+            set_id, context_id = sets.get(id, (id, None))
             end = self.numbers[i + 1][0] if i + 1 < len(self.numbers) else len(self.pdf) * 1000
             options = [option for option in self.choices if start < option[0] < end]
             ordered = []
@@ -116,64 +145,68 @@ class Book:
                         break
             assert 4 <= len(ordered) <= 5 and guide.key[i] in 'ABCDE'[:len(ordered)], (unit, number, options)
             stem_start = start - 6
-            context_lines = self.span(context_start, stem_start)
-            context_visuals = self.images(context_start, stem_start)
-            if context_lines or context_visuals:
-                candidate = self.region(context_lines, context_visuals, force_image=True)
-                shared = f'{unit}-{number}'
-                contexts[shared] = candidate
-            first_choice = ordered[0][0]
-            stem_lines = self.span(stem_start, first_choice - 3)
+            if context_id == id:
+                context_lines = self.span(context_start, stem_start)
+                context_visuals = self.images(context_start, stem_start)
+                assert context_lines or context_visuals, ('Missing source material', id)
+                contexts[id] = self.region(context_lines, context_visuals, force_image=True)
+            first_choice = ordered[0][0] - 8
+            stem_lines = self.span(stem_start, first_choice)
             stem_visuals = [item for item in self.images(stem_start, end - 6)
-                            if (item[0] + item[1]) / 2 < first_choice - 3]
+                            if (item[0] + item[1]) / 2 < first_choice]
             stem = self.region(stem_lines, stem_visuals, force_image=any(x >= 150 for _, _, x, _, _ in stem_lines))
-            stem['text'] = normalize(' '.join(re.sub(rf'^{number}\.\s*', '', line[4]) if line[2] < 45 else line[4]
-                                             for line in stem_lines))
+            stem['text'] = re.sub(rf'^{number}\.\s*', '', stem['text'])
             choices = []
             for j, (y, letter, bottom) in enumerate(ordered):
                 final = j + 1 == len(ordered)
-                limit = end - 6 if final else ordered[j + 1][0] - 3
-                start_text = y - (7 if j == 0 or y - ordered[j - 1][0] > 14 else 3)
-                lines = self.span(start_text, limit)
+                limit = end - 6 if final else ordered[j + 1][0] - 8
+                lines = self.span(y - 8, limit)
                 start_visual = max(y - 10, (ordered[j - 1][0] + y) / 2) if j else y - 7
                 end_visual = limit if final else (y + ordered[j + 1][0]) / 2
                 visuals = [item for item in self.images(stem_start, end - 6)
                            if start_visual <= (item[0] + item[1]) / 2 < end_visual]
                 if final:
-                    # The options are indented. Top-level text after the final answer
-                    # belongs to the stimulus for the following question.
-                    later_text = next((line[0] for line in lines if line[0] > y + 10 and line[2] < 65), limit)
-                    lines = [line for line in lines if line[0] < later_text]
-                    visuals = [v for v in visuals if v[0] < later_text and v[0] < max(bottom + 8, max((l[1] for l in lines), default=bottom) + 3)]
-                    context_start = max([bottom, *[l[1] for l in lines], *[v[1] for v in visuals]]) + 1
-                choice = self.region(lines, visuals, left=66, force_image=any(x >= 140 for _, _, x, _, _ in lines))
-                choice['text'] = normalize(' '.join(re.sub(rf'^\({letter}\)\s*', '', line[4]) if line[2] < 72 else line[4]
-                                                   for line in lines))
+                    lines, visuals, context_start = self.finish_choice(lines, visuals, y, bottom)
+                choice = self.region(lines, visuals, left=84, force_image=any(x >= 140 for _, _, x, _, _ in lines))
+                choice['text'] = line_text([(*line[:4], re.sub(rf'^\({letter}\)\s*', '', line[4]) if line[2] < 72 else line[4])
+                                            for line in lines])
                 choices.append(choice)
-            option_text = tuple(choice['text'] for choice in choices)
-            needs_context = bool(shared and number - int(shared.split('-')[1]) <= 5 and re.search(
-                r'(?i)\b(above|shown|scenario|passage|study|data|graph|diagram|table|figure|map|model|according to|experiment|researchers|location [1-9]|these results|which site|which area|which letter|lettered)\b', stem['text']))
-            at_context_start = shared == f'{unit}-{number}'
-            if at_context_start:
-                shared_options = option_text
-            same_choices = shared_options == option_text and shared and number - int(shared.split('-')[1]) <= 5
-            context_id = shared if at_context_start or needs_context or same_choices else None
-            questions.append(dict(id=f'{unit}-{number}', sourceUnit=unit, number=number, page=int(start // 1000) + 1,
-                                  stem=stem, choices=choices, answer=guide.key[i], context=context_id))
+            questions.append(dict(id=id, sourceUnit=unit, number=number, page=int(start // 1000) + 1,
+                                  stem=stem, choices=choices, answer=guide.key[i], context=context_id, setId=set_id))
         return questions, contexts
+
+    def finish_choice(self, lines, visuals, y, bottom):
+        # Final-option text continues at the option indent with normal line spacing.
+        # Stop at the next paragraph or page, before inspecting the next stimulus.
+        end_of_text = bottom
+        option_lines = []
+        for line in lines:
+            top, end, x, *_ = line
+            if top > y + 9 and (x < 85 or top > end_of_text + 13):
+                break
+            option_lines.append(line)
+            end_of_text = max(end_of_text, end)
+        option_visuals = [item for item in visuals if item[0] <= end_of_text + 3 and item[2] >= 82]
+        content_end = max([end_of_text, *[item[1] for item in option_visuals]])
+        return option_lines, option_visuals, content_end + 1
 
 
 def build(source):
     questions, contexts = [], {}
+    sets = read_stimulus_sets()
     for unit in range(1, 10):
         booklet = source / f'test booklet-unit {unit}.pdf'
         guide = source / f'scoring guide-unit {unit}.pdf'
         if unit == 5 and not guide.exists():
             guide = source / 'scoring guide-unit 5(1).pdf'
-        batch, shared = Book(booklet).extract(unit, Book(guide, scored=True))
+        batch, shared = Book(booklet).extract(unit, Book(guide, scored=True), sets)
         questions.extend(batch)
         contexts.update(shared)
         print(f'Unit {unit}: {len(batch)} questions, {len(shared)} stimulus blocks')
+    known = {question['id'] for question in questions}
+    assert set(sets) <= known
+    assert all(question['context'] in contexts for question in questions if question['context'])
+    assert all(choice['text'] or choice.get('image') for q in questions for choice in q['choices'])
     return dict(questions=questions, contexts=contexts)
 
 

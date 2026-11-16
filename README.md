@@ -1,10 +1,12 @@
 # APES MCQ Practice
 
-[Open the private practice site](https://apes-mcq-practice-aiden.humblecob8.chatgpt.site)
+[Open APES MCQ Practice](https://apes-mcq-practice-aiden.humblecob8.chatgpt.site/)
 
 A personal AP Environmental Science multiple-choice practice site. Choose a numbered topic, a unit, or a randomized whole-course set. The site checks answers against the nine scoring guides, scores the set, and lets you retry missed questions. It saves the current session in the browser.
 
 The topic list follows College Board's [AP Environmental Science Course and Exam Description, effective fall 2026](https://apcentral.collegeboard.org/media/pdf/ap-environmental-science-course-and-exam-description.pdf). The source booklet remains visible inside each quiz. Unit filters follow the content tags, so a question can appear in a unit other than the one named in the original booklet.
+
+`stimulus_sets.txt` records which original booklet questions use the same material. The quiz displays these questions together in source order, including on retries. Topic and unit filters can pick a set when any question in the set matches. Approximate quiz lengths leave room for complete sets.
 
 ## Build the personal site
 

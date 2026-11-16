@@ -9,8 +9,12 @@ const units = new Map(data.course.map(unit => [unit.id, unit]));
 const topics = new Map(data.course.flatMap(unit => unit.topics.map(topic => [topic.id, topic])));
 const topicBank = new Map([...topics.keys()].map(id => [id, []]));
 const unitBank = new Map([...units.keys()].map(id => [id, []]));
+const setBank = new Map();
 
 for (const question of questions.values()) {
+  const setId = question.setId || question.id;
+  if (!setBank.has(setId)) setBank.set(setId, []);
+  setBank.get(setId).push(question.id);
   const linkedUnits = new Set();
   for (const topic of question.topics) {
     topicBank.get(topic).push(question.id);
@@ -19,9 +23,26 @@ for (const question of questions.values()) {
   for (const unit of linkedUnits) unitBank.get(unit).push(question.id);
 }
 
+function setIdsFor(questionIds) {
+  return [...new Set(questionIds.map(id => questions.get(id).setId || id))];
+}
+
+function countFor(questionIds) {
+  return setIdsFor(questionIds).reduce((sum, id) => sum + setBank.get(id).length, 0);
+}
+
+function makeSet(questionIds, target = Infinity) {
+  const ids = [];
+  for (const setId of shuffled(setIdsFor(questionIds))) {
+    ids.push(...setBank.get(setId));
+    if (ids.length >= target) break;
+  }
+  return ids;
+}
+
 const filters = { mode: 'unit', unit: 1, topic: null, size: '10' };
 let session = readSession();
-let selected = null;
+const selected = new Map();
 let view = 'home';
 
 function escapeHtml(value) {
@@ -40,7 +61,13 @@ function readSession() {
     const stored = JSON.parse(localStorage.getItem(storageKey));
     if (Array.isArray(stored?.ids) && stored.ids.length && stored.ids.every(id => questions.has(id)) &&
         Number.isInteger(stored.index) && stored.index >= 0 && stored.index < stored.ids.length &&
-        stored.answers && typeof stored.answers === 'object') return stored;
+        stored.answers && typeof stored.answers === 'object') {
+      if (stored.grouped) return stored;
+      const current = stored.ids[stored.index];
+      const ids = setIdsFor(stored.ids).flatMap(id => setBank.get(id));
+      const group = setBank.get(questions.get(current).setId || current);
+      return { ...stored, ids, index: ids.indexOf(group[0]), grouped: true };
+    }
   } catch { /* Practice still works if browser storage is disabled. */ }
   return null;
 }
@@ -64,14 +91,15 @@ function optionsForFilters() {
 function renderHome() {
   view = 'home';
   const options = optionsForFilters();
-  const questionOptions = [5, 10, 20, 40, 80].filter(n => n < options.ids.length).map(n => [String(n), n]);
-  questionOptions.push(['all', `All ${options.ids.length || ''}`.trim()]);
+  const availableCount = countFor(options.ids);
+  const questionOptions = [5, 10, 20, 40, 80].filter(n => n < availableCount).map(n => [String(n), `About ${n}`]);
+  questionOptions.push(['all', `All ${availableCount || ''}`.trim()]);
   const size = questionOptions.some(([value]) => value === filters.size) ? filters.size : 'all';
   const rows = data.course.map(unit => {
     const active = unit.id === filters.unit;
-    const available = unitBank.get(unit.id).length;
+    const available = countFor(unitBank.get(unit.id));
     const topicRows = filters.mode === 'topic' && active ? `<div class="topic-list">${unit.topics.map(topic => {
-      const count = topicBank.get(topic.id).length;
+      const count = countFor(topicBank.get(topic.id));
       return `<button type="button" class="topic-row" data-topic="${topic.id}" aria-pressed="${topic.id === filters.topic}" ${count ? '' : 'disabled'}><span class="topic-code">${topic.id}</span><strong>${escapeHtml(topic.name)}</strong><span class="count">${count}</span></button>`;
     }).join('')}</div>` : '';
     return `<div><button type="button" class="unit-row" data-unit="${unit.id}" aria-pressed="${active}"><span class="unit-badge">${unit.id}</span><strong>${escapeHtml(unit.name)}</strong><span class="count">${questionCount(available)}</span></button>${topicRows}</div>`;
@@ -92,9 +120,10 @@ function renderHome() {
       </section>
       <section class="panel settings" aria-labelledby="set-title">
         <h2 id="set-title">Practice set</h2>
-        <p class="selection subtle" aria-live="polite">${escapeHtml(options.name)}${options.ids.length ? `<br>${questionCount(options.ids.length)} available` : ''}</p>
+        <p class="selection subtle" aria-live="polite">${escapeHtml(options.name)}${availableCount ? `<br>${questionCount(availableCount)} available` : ''}</p>
         <label for="set-size">Questions per set</label>
         <select id="set-size" ${options.ids.length ? '' : 'disabled'}>${questionOptions.map(([value, label]) => `<option value="${value}" ${value === size ? 'selected' : ''}>${label}</option>`).join('')}</select>
+        <p class="set-note subtle">Questions that share material stay together.</p>
         <button class="button primary" type="button" id="start" ${options.ids.length ? '' : 'disabled'}>Start practice <span aria-hidden="true">→</span></button>
         ${session && !session.done ? '<button class="button" type="button" id="resume">Resume last set</button>' : ''}
         ${!questions.size ? '<p class="feedback">Build the site with your PDFs to add the question bank. Follow the instructions in the repository.</p>' : ''}
@@ -112,60 +141,75 @@ function shuffled(ids) {
 }
 
 function startSession(ids, name) {
-  session = { ids, name, index: 0, answers: {}, done: false };
-  selected = null;
+  session = { ids, name, index: 0, answers: {}, done: false, grouped: true };
+  selected.clear();
   saveSession();
   renderQuestion(true);
 }
 
-function renderQuestion(moveFocus = false) {
-  view = 'question';
-  const q = questions.get(session.ids[session.index]);
+function activeSet() {
+  const question = questions.get(session.ids[session.index]);
+  return setBank.get(question.setId || question.id).map(id => questions.get(id));
+}
+
+function renderItem(q, position, groupSize) {
   const answer = session.answers[q.id];
-  const context = data.contexts[q.context];
   const checked = answer !== undefined;
   const correct = answer === q.answer;
+  return `<article class="quiz-item" data-question="${q.id}" aria-label="Question ${position}">
+    ${groupSize > 1 ? `<p class="item-number">Question ${position} · Booklet #${q.number}</p>` : ''}
+    <div class="stem" id="stem-${q.id}" tabindex="-1">${imageOrText(q.stem, 'Question text')}</div>
+    <div class="choices" role="group" aria-label="Answer choices for question ${position}">
+      ${q.choices.map((choice, index) => {
+        const letter = letters[index];
+        const chosen = (checked ? answer : selected.get(q.id)) === letter;
+        const result = checked && letter === q.answer ? 'correct' : checked && chosen ? 'wrong' : '';
+        return `<button class="choice ${result}" type="button" data-choice="${letter}" aria-pressed="${chosen}" ${checked ? 'disabled' : ''}><span class="letter">${letter}</span>${imageOrText(choice, `Option ${letter}`)}${result ? `<span class="choice-icon" aria-hidden="true">${result === 'correct' ? '✓' : '×'}</span>` : ''}</button>`;
+      }).join('')}
+    </div>
+    ${checked ? `<div class="feedback ${correct ? '' : 'wrong'}" role="status" tabindex="-1"><strong>${correct ? 'Correct.' : `Correct answer: ${q.answer}.`}</strong> <span>${q.topics.map(id => `${id} ${escapeHtml(topics.get(id).name)}`).join(' · ')}${q.topicReview ? ' (provisional)' : ''}</span>${q.explanation ? `<p>${escapeHtml(q.explanation)}</p>` : ''}</div>` : `<div class="item-controls"><button class="button primary" type="button" data-check ${selected.has(q.id) ? '' : 'disabled'}>Check answer</button></div>`}
+  </article>`;
+}
+
+function renderQuestion(moveFocus = false) {
+  view = 'question';
+  const group = activeSet();
+  const first = group[0];
+  const context = data.contexts[first.context];
   const position = session.index + 1;
+  const end = session.index + group.length;
+  const range = group.length === 1 ? `Question ${position}` : `Questions ${position}–${end}`;
+  const bookletRange = group.length === 1 ? `#${first.number}` : `#${first.number}–${group.at(-1).number}`;
   const scope = session.name || 'Practice set';
   app.innerHTML = `
     <div class="session">
-      <div class="session-head"><button class="button" type="button" id="back">← Practice menu</button><strong>Question ${position} of ${session.ids.length}</strong></div>
-      <div class="progress" role="progressbar" aria-label="Set position" aria-valuenow="${position}" aria-valuemin="0" aria-valuemax="${session.ids.length}"><span style="width:${100 * position / session.ids.length}%"></span></div>
-      <section class="panel question" aria-label="Question ${position}">
-        <div class="question-meta"><span class="label">${escapeHtml(scope)}</span><span class="subtle">Booklet ${q.sourceUnit} · #${q.number}</span></div>
-        ${context ? `<details class="stimulus" open><summary>Question material</summary>${imageOrText(context, 'Question figure or passage')}</details>` : ''}
-        <div class="stem" id="stem" tabindex="-1">${imageOrText(q.stem, 'Question text')}</div>
-        <div class="choices" role="group" aria-label="Answer choices">
-          ${q.choices.map((choice, index) => {
-            const letter = letters[index];
-            const chosen = (checked ? answer : selected) === letter;
-            const result = checked && letter === q.answer ? 'correct' : checked && chosen ? 'wrong' : '';
-            return `<button class="choice ${result}" type="button" data-choice="${letter}" aria-pressed="${chosen}" ${checked ? 'disabled' : ''}><span class="letter">${letter}</span>${imageOrText(choice, `Option ${letter}`)}${result ? `<span class="choice-icon" aria-hidden="true">${result === 'correct' ? '✓' : '×'}</span>` : ''}</button>`;
-          }).join('')}
-        </div>
-        ${checked ? `<div class="feedback ${correct ? '' : 'wrong'}" role="status" tabindex="-1" id="feedback"><strong>${correct ? 'Correct.' : `Correct answer: ${q.answer}.`}</strong> <span>${q.topics.map(id => `${id} ${escapeHtml(topics.get(id).name)}`).join(' · ')}${q.topicReview ? ' (provisional)' : ''}</span>${q.explanation ? `<p>${escapeHtml(q.explanation)}</p>` : ''}</div>` : ''}
+      <div class="session-head"><button class="button" type="button" id="back">← Practice menu</button><strong id="set-position" tabindex="-1">${range} of ${session.ids.length}</strong></div>
+      <div class="progress" role="progressbar" aria-label="Set position" aria-valuenow="${end}" aria-valuemin="0" aria-valuemax="${session.ids.length}"><span style="width:${100 * end / session.ids.length}%"></span></div>
+      <section class="panel question" aria-label="${range}">
+        <div class="question-meta"><span class="label">${escapeHtml(scope)}</span><span class="subtle">Booklet ${first.sourceUnit} · ${bookletRange}</span></div>
+        ${context ? `<details class="stimulus" open><summary>${group.length > 1 ? 'Shared material' : 'Question material'}</summary>${imageOrText(context, 'Question figure or passage')}</details>` : ''}
+        ${group.map((q, index) => renderItem(q, position + index, group.length)).join('')}
       </section>
       <div class="control-row">
         <button class="button" type="button" id="previous" ${position === 1 ? 'disabled' : ''}>← Previous</button>
         <div class="right-controls">
-          ${!checked ? `<button class="button" type="button" id="next">${position === session.ids.length ? 'Finish set' : 'Skip'}</button><button class="button primary" type="button" id="check" ${!selected ? 'disabled' : ''}>Check answer</button>` : `<button class="button primary" type="button" id="next">${position === session.ids.length ? 'See results' : 'Next question →'}</button>`}
+          <button class="button" type="button" id="next">${end === session.ids.length ? 'See results' : 'Continue →'}</button>
         </div>
       </div>
     </div>`;
   if (moveFocus) {
     window.scrollTo(0, 0);
-    document.querySelector('#stem').focus({ preventScroll: true });
+    document.querySelector('#set-position').focus({ preventScroll: true });
   }
 }
 
-function selectChoice(letter) {
-  selected = letter;
-  for (const button of app.querySelectorAll('[data-choice]')) {
+function selectChoice(item, letter) {
+  selected.set(item.dataset.question, letter);
+  for (const button of item.querySelectorAll('[data-choice]')) {
     const active = button.dataset.choice === letter;
     button.setAttribute('aria-pressed', active);
-    button.classList.toggle('selected', active);
   }
-  document.querySelector('#check').disabled = false;
+  item.querySelector('[data-check]').disabled = false;
 }
 
 function renderResults() {
@@ -194,43 +238,60 @@ app.addEventListener('click', event => {
     app.querySelector(selector).focus({ preventScroll: true });
     return;
   }
-  if (button.dataset.choice) { selectChoice(button.dataset.choice); return; }
+  if (button.dataset.choice || button.hasAttribute('data-check')) {
+    const item = button.closest('[data-question]');
+    if (button.dataset.choice) {
+      selectChoice(item, button.dataset.choice);
+    } else {
+      const id = item.dataset.question;
+      session.answers[id] = selected.get(id);
+      selected.delete(id);
+      saveSession();
+      const group = activeSet();
+      const position = session.index + group.findIndex(q => q.id === id) + 1;
+      item.outerHTML = renderItem(questions.get(id), position, group.length);
+      app.querySelector(`[data-question="${id}"] .feedback`).focus({ preventScroll: true });
+    }
+    return;
+  }
   switch (button.id) {
     case 'start': {
       const options = optionsForFilters();
       const amount = document.querySelector('#set-size').value;
-      startSession(shuffled(options.ids).slice(0, amount === 'all' ? options.ids.length : Number(amount)), options.name);
+      startSession(makeSet(options.ids, amount === 'all' ? Infinity : Number(amount)), options.name);
       break;
     }
-    case 'resume': selected = null; renderQuestion(true); break;
+    case 'resume': selected.clear(); renderQuestion(true); break;
     case 'back': renderHome(); window.scrollTo(0, 0); break;
-    case 'previous': session.index--; selected = null; saveSession(); renderQuestion(true); break;
-    case 'check':
-      session.answers[session.ids[session.index]] = selected;
+    case 'previous': {
+      const prior = questions.get(session.ids[session.index - 1]);
+      session.index -= setBank.get(prior.setId || prior.id).length;
+      selected.clear();
       saveSession();
-      renderQuestion();
-      document.querySelector('#feedback').focus();
+      renderQuestion(true);
       break;
+    }
     case 'next':
-      selected = null;
-      if (session.index === session.ids.length - 1) {
+      selected.clear();
+      if (session.index + activeSet().length === session.ids.length) {
         session.done = true;
         saveSession();
         renderResults();
       } else {
-        session.index++;
+        session.index += activeSet().length;
         saveSession();
         renderQuestion(true);
       }
       break;
-    case 'retry': startSession(shuffled(session.ids.filter(id => session.answers[id] !== questions.get(id).answer)), 'Missed questions'); break;
+    case 'retry': startSession(makeSet(session.ids.filter(id => session.answers[id] !== questions.get(id).answer)), 'Review missed questions'); break;
   }
 });
 
 document.addEventListener('keydown', event => {
   if (view !== 'question' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   const letter = event.key.toUpperCase();
-  if (letter.length === 1 && letters.includes(letter)) app.querySelector(`[data-choice="${letter}"]:not(:disabled)`)?.click();
+  const item = event.target.closest?.('[data-question]') || (activeSet().length === 1 ? app.querySelector('[data-question]') : null);
+  if (letter.length === 1 && letters.includes(letter)) item?.querySelector(`[data-choice="${letter}"]:not(:disabled)`)?.click();
 });
 
 renderHome();
