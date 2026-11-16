@@ -1,26 +1,43 @@
 'use strict';
 
-const data = JSON.parse(document.querySelector('#practice-data').textContent);
+const course = JSON.parse(document.querySelector('#course-data').textContent);
 const app = document.querySelector('#app');
 const storageKey = 'apes-practice-fall-2026-v1';
 const letters = 'ABCDE';
-const questions = new Map(data.questions.map(question => [question.id, question]));
-const units = new Map(data.course.map(unit => [unit.id, unit]));
-const topics = new Map(data.course.flatMap(unit => unit.topics.map(topic => [topic.id, topic])));
+const questions = new Map();
+const units = new Map(course.map(unit => [unit.id, unit]));
+const topics = new Map(course.flatMap(unit => unit.topics.map(topic => [topic.id, topic])));
 const topicBank = new Map([...topics.keys()].map(id => [id, []]));
 const unitBank = new Map([...units.keys()].map(id => [id, []]));
 const setBank = new Map();
+let data;
+let bankRequest;
 
-for (const question of questions.values()) {
-  const setId = question.setId || question.id;
-  if (!setBank.has(setId)) setBank.set(setId, []);
-  setBank.get(setId).push(question.id);
-  const linkedUnits = new Set();
-  for (const topic of question.topics) {
-    topicBank.get(topic).push(question.id);
-    linkedUnits.add(Number(topic.split('.')[0]));
-  }
-  for (const unit of linkedUnits) unitBank.get(unit).push(question.id);
+function loadPractice() {
+  bankRequest ??= (async () => {
+    const node = document.querySelector('#practice-data');
+    if (node.dataset.src) {
+      const response = await fetch(node.dataset.src);
+      if (!response.ok) throw new Error('Practice bank unavailable');
+      data = await response.json();
+    } else {
+      data = JSON.parse(node.textContent);
+    }
+    for (const question of data.questions) {
+      questions.set(question.id, question);
+      const setId = question.setId || question.id;
+      if (!setBank.has(setId)) setBank.set(setId, []);
+      setBank.get(setId).push(question.id);
+      const linkedUnits = new Set();
+      for (const topic of question.topics) {
+        topicBank.get(topic).push(question.id);
+        linkedUnits.add(Number(topic.split('.')[0]));
+      }
+      for (const unit of linkedUnits) unitBank.get(unit).push(question.id);
+    }
+    session = readSession();
+  })().catch(error => { bankRequest = null; throw error; });
+  return bankRequest;
 }
 
 function setIdsFor(questionIds) {
@@ -41,7 +58,7 @@ function makeSet(questionIds, target = Infinity) {
 }
 
 const filters = { mode: 'unit', unit: 1, topic: null, size: '10' };
-let session = readSession();
+let session = null;
 const selected = new Map();
 let view = 'home';
 
@@ -95,7 +112,7 @@ function renderHome() {
   const questionOptions = [5, 10, 20, 40, 80].filter(n => n < availableCount).map(n => [String(n), `About ${n}`]);
   questionOptions.push(['all', `All ${availableCount || ''}`.trim()]);
   const size = questionOptions.some(([value]) => value === filters.size) ? filters.size : 'all';
-  const rows = data.course.map(unit => {
+  const rows = course.map(unit => {
     const active = unit.id === filters.unit;
     const available = countFor(unitBank.get(unit.id));
     const topicRows = filters.mode === 'topic' && active ? `<div class="topic-list">${unit.topics.map(topic => {
@@ -106,9 +123,8 @@ function renderHome() {
   }).join('');
 
   app.innerHTML = `
-    <section class="hero" aria-labelledby="hero-title">
-      <div><div class="label">AP Environmental Science</div><h1 id="hero-title">MCQ Practice</h1><p>Pick a topic, a unit, or a mix from the whole course.</p></div>
-      <div class="stat"><strong>${questions.size.toLocaleString()}</strong><small>questions in the bank</small></div>
+    <section class="practice-intro" aria-labelledby="practice-title">
+      <h1 id="practice-title" tabindex="-1">MCQ Practice</h1><p class="subtle">${questionCount(questions.size)} · Practice by topic, unit, or across the whole course.</p>
     </section>
     <div class="workspace">
       <section class="panel" aria-labelledby="browse-title">
@@ -221,7 +237,6 @@ function renderResults() {
   document.querySelector('#results-title').focus({ preventScroll: true });
 }
 
-document.querySelector('#home').addEventListener('click', () => { renderHome(); window.scrollTo(0, 0); });
 app.addEventListener('change', event => { if (event.target.id === 'set-size') filters.size = event.target.value; });
 app.addEventListener('click', event => {
   const button = event.target.closest('button');
@@ -293,5 +308,3 @@ document.addEventListener('keydown', event => {
   const item = event.target.closest?.('[data-question]') || (activeSet().length === 1 ? app.querySelector('[data-question]') : null);
   if (letter.length === 1 && letters.includes(letter)) item?.querySelector(`[data-choice="${letter}"]:not(:disabled)`)?.click();
 });
-
-renderHome();

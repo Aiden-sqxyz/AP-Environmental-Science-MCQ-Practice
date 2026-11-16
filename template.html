@@ -4,20 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Practice AP Environmental Science multiple-choice questions by topic, unit, or across the whole course.">
+  <meta name="theme-color" content="#03261f">
   <title>APES Practice · AP Environmental Science</title>
   <style>/* STYLE */</style>
+  <style>/* LANDING STYLE */</style>
 </head>
 <body>
-  <header class="topbar">
+  /* LANDING */
+  <header class="topbar" hidden>
     <div class="shell topbar-inner">
-      <button type="button" class="brand" id="home" aria-label="APES Practice home"><span class="brand-mark" aria-hidden="true">AP</span><span>APES Practice</span></button>
+      <a class="brand" href="#" aria-label="APES Practice home"><span class="brand-mark" aria-hidden="true">AP</span><span>APES Practice</span></a>
       <a class="ced-link" href="https://apcentral.collegeboard.org/media/pdf/ap-environmental-science-course-and-exam-description.pdf" target="_blank" rel="noopener">Course framework <span aria-hidden="true">↗</span></a>
     </div>
   </header>
-  <main id="app" class="shell" tabindex="-1"></main>
-  <footer class="shell footer"><span>AP Environmental Science</span><span>Fall 2026 course framework</span></footer>
-  <noscript>Enable JavaScript to use APES Practice.</noscript>
-  <script id="practice-data" type="application/json">/* DATA */</script>
+  <main id="app" class="shell" tabindex="-1" hidden></main>
+  <footer class="shell footer" hidden><span>AP Environmental Science</span><span>Fall 2026 course framework</span></footer>
+  <noscript><p class="shell">Enable JavaScript to use APES Practice.</p></noscript>
+  <script id="course-data" type="application/json">/* COURSE */</script>
+  <script id="practice-data" type="application/json" /* DATA SOURCE */>/* DATA */</script>
   <script>/* APP */</script>
+  <script>/* LANDING SCRIPT */</script>
 </body>
 </html>

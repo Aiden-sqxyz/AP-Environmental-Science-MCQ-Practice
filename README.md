@@ -19,6 +19,10 @@ python build_site.py APES-MCQ-Practice.html --pdfs /path/to/pdfs
 
 Open `APES-MCQ-Practice.html` in your browser. It includes the questions and figures and works offline. Keep this generated file with your personal study materials. The repository contains the app and build files.
 
+For a hosted build, add `--split-bank` and serve the generated HTML and `practice-bank.json` from the same directory. The homepage loads the practice bank when a visitor opens practice. To rebuild only the interface, pass an existing tagged bank with `--prepared-bank` in place of `--pdfs`.
+
+The homepage uses `assets/delta.webp`, the supplied aerial-delta design recreated as a text-free image. All navigation, text, and atmospheric effects are written in HTML and CSS.
+
 ## Review topic assignments
 
 Pass `--report topic-review.tsv` to the build command for a list of question IDs, tags, provisional matches, and source text. IDs use `booklet-question`, such as `4-97`. `topic_overrides.txt` records reviewed matches. `topic_rules.txt` provides the initial classification for other questions using the stem, keyed choice, and shared material. The displayed course unit comes from the CED topic ID. Provisional tags are marked in answer feedback.
