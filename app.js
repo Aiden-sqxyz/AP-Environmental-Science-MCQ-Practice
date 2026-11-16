@@ -127,7 +127,7 @@ function renderHome() {
       <h1 id="practice-title" tabindex="-1">MCQ Practice</h1><p class="subtle">${questionCount(questions.size)} · Practice by topic, unit, or across the whole course.</p>
     </section>
     <div class="workspace">
-      <section class="panel" aria-labelledby="browse-title">
+      <section class="browse" aria-labelledby="browse-title">
         <h2 id="browse-title">Choose what to practice</h2>
         <div class="tabs" role="group" aria-label="Practice scope">
           ${[['unit','By unit'], ['topic','By topic'], ['course','Whole course']].map(([value, label]) => `<button type="button" class="tab" data-mode="${value}" aria-pressed="${filters.mode === value}">${label}</button>`).join('')}
@@ -197,19 +197,26 @@ function renderQuestion(moveFocus = false) {
   const range = group.length === 1 ? `Question ${position}` : `Questions ${position}–${end}`;
   const bookletRange = group.length === 1 ? `#${first.number}` : `#${first.number}–${group.at(-1).number}`;
   const scope = session.name || 'Practice set';
+  const previousPosition = Number(app.querySelector('.progress')?.getAttribute('aria-valuenow') ?? end);
   app.innerHTML = `
-    <div class="session">
-      <div class="session-head"><button class="button" type="button" id="back">← Practice menu</button><strong id="set-position" tabindex="-1">${range} of ${session.ids.length}</strong></div>
-      <div class="progress" role="progressbar" aria-label="Set position" aria-valuenow="${end}" aria-valuemin="0" aria-valuemax="${session.ids.length}"><span style="width:${100 * end / session.ids.length}%"></span></div>
-      <section class="panel question" aria-label="${range}">
-        <div class="question-meta"><span class="label">${escapeHtml(scope)}</span><span class="subtle">Booklet ${first.sourceUnit} · ${bookletRange}</span></div>
-        ${context ? `<details class="stimulus" open><summary>${group.length > 1 ? 'Shared material' : 'Question material'}</summary>${imageOrText(context, 'Question figure or passage')}</details>` : ''}
-        ${group.map((q, index) => renderItem(q, position + index, group.length)).join('')}
-      </section>
-      <div class="control-row">
-        <button class="button" type="button" id="previous" ${position === 1 ? 'disabled' : ''}>← Previous</button>
-        <div class="right-controls">
-          <button class="button" type="button" id="next">${end === session.ids.length ? 'See results' : 'Continue →'}</button>
+    <div class="session session-grid">
+      <aside class="session-sidebar" aria-label="Current practice set">
+        <button class="button menu-return" type="button" id="back">← Practice menu</button>
+        <p class="session-scope">${escapeHtml(scope)}</p>
+        <strong class="position-mark" id="set-position" tabindex="-1">${range} of ${session.ids.length}</strong>
+      </aside>
+      <div class="session-reading">
+        <div class="session-head"><span class="label">MCQ Practice</span><span class="source-reference">Booklet ${first.sourceUnit} · ${bookletRange}</span></div>
+        <div class="progress" role="progressbar" aria-label="Set position" aria-valuenow="${end}" aria-valuemin="0" aria-valuemax="${session.ids.length}"><span style="--progress-from:${previousPosition / session.ids.length};--progress-to:${end / session.ids.length}"></span></div>
+        <section class="question${!context && group.length === 1 ? ' question-solo' : ''}" aria-label="${range}">
+          ${context ? `<details class="stimulus" open><summary>${group.length > 1 ? 'Shared material' : 'Question material'}</summary>${imageOrText(context, 'Question figure or passage')}</details>` : ''}
+          ${group.map((q, index) => renderItem(q, position + index, group.length)).join('')}
+        </section>
+        <div class="control-row">
+          <button class="button" type="button" id="previous" ${position === 1 ? 'disabled' : ''}>← Previous</button>
+          <div class="right-controls">
+            <button class="button primary" type="button" id="next">${end === session.ids.length ? 'See results' : 'Continue →'}</button>
+          </div>
         </div>
       </div>
     </div>`;
