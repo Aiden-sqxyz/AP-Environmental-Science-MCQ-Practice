@@ -1,0 +1,6 @@
+__pycache__/
+*.pdf
+*.one
+APES-MCQ-Practice.html
+dist/
+.openai/

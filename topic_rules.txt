@@ -1,0 +1,100 @@
+# Topic | Strong signals | Supporting signals. Regular expressions, case insensitive.
+1.1|abiotic|biotic.*biotic|symbiosis|mutualism|commensalism|parasitism
+1.2|terrestrial biome|tundra|taiga|temperate grassland|tropical rain ?forest|temperate deciduous|boreal|savanna|chaparral|desert|permafrost|climatogram|biome|forest
+1.3|aquatic biome|estuar|intertidal|coral reef|open ocean|freshwater biome|salinity|turbidity|hardness|marine|freshwater|river|lake|wetland
+1.4|carbon cycle|carbon reservoir|carbon sink|carbon sequestr|carbon pool|carbon storage|fossil carbon|carbon dioxide|photosynthesis|respiration
+1.5|nitrogen cycle|nitrifi|nitrogen fixation|fixes nitrogen|fixing nitrogen|ammonification|nitrogen gas|nodules|nitrate|nitrite|legume|nitrogen
+1.6|phosphorus cycle|phosphate|phosphorus|sedimentary cycle
+1.7|hydrologic|water cycle|transpiration|infiltration|percolation|evaporation|precipitation|runoff
+1.8|primary productivity|net productivity|gross productivity|\bNPP\b|\bGPP\b|gross primary|net primary|dry biomass|photosynthetic rate|oxygen production|photosynthesis|respiration
+1.9|trophic level|primary consumer|secondary consumer|tertiary consumer|autotroph|producer|heterotroph|decomposer|herbivore|carnivore|omnivore|trophic pyramid
+1.10|energy transfer|energy available|energy flow|energy loss|ten percent|10\s*%|kilocalorie|converted to heat|thermodynamic|energy pyramid|trophic efficiency|joule
+1.11|food web|food chain|trophic cascade|prey items|feeding relationship|food source|predator|prey
+2.1|genetic diversity|species richness|species evenness|species diversity|ecosystem diversity|biodiversity|diversity index|resilien
+2.2|ecosystem service|provisioning|supporting service|regulating service|cultural service|pollination|flood control|water filtration
+2.3|island biogeography|island.*mainland|mainland|colonization rate|island|isolated habitat|distance from
+2.4|range of tolerance|ecological tolerance|physiological stress|zone of intolerance|optimum range|soil moisture|limiting factor|toleran
+2.5|natural disruption|natural disturbance|natural event|periodic fire|wildfire|hurricane|volcanic eruption|drought|meteorite|flood
+2.6|natural selection|peppered moth|adaptive trait|adaptation|adapted|fitness|selective pressure|heritable|evolution|camouflage|resistance
+2.7|primary succession|secondary succession|ecological succession|pioneer species|climax community|indicator species|keystone species|lichen|bare rock|abandoned field|succession
+3.1|generalist|specialist|niche breadth|wide range of foods|restricted diet|broad niche|narrow niche
+3.2|r.selected|k.selected|reproductive strategy|parental care|few offspring|many offspring|life history|reproduce rapidly|offspring
+3.3|survivorship|type [iI]{1,3}\b|age.specific survival|mortality.*early|longevity|life expectancy
+3.4|carrying capacity|overshoot|dieback|die.off|population stabiliz|logistic|maximum population|level off
+3.5|exponential growth|density.dependent|density.independent|resource availability|limiting factor|per capita growth|doubling time|birth.*death|population growth|competition
+3.6|age.structure|population pyramid|pre.reproductive|post.reproductive|age distribution|age cohort|population.*age|age group
+3.7|total fertility|replacement.level|children per woman|infant mortality|fertility rate|family planning|contraception
+3.8|human population|immigration|emigration|crude birth|crude death|population growth|birth rate|death rate|doubling|migration|per 1,?000|population momentum
+3.9|demographic transition|preindustri|postindustri|industrializ|stage [1-5]|industrial revolution|industrial stage|demographic
+4.1|plate tectonic|plate boundary|plate boundar|tectonic plate|continental drift|subduction|divergent|convergent|transform fault|earthquake|volcan|ocean ridge|seafloor spreading|lithosphere|mantle|ring of fire
+4.2|soil formation|soil horizon|soil erosion|parent material|physical weathering|chemical weathering|weathered rock|topsoil loss|bedrock|leaching|horizon|erosion
+4.3|soil texture|soil properties|soil composition|soil triangle|water.holding|permeab|porosity|soil sample|loam|sand|silt|clay|humus|particle size
+4.4|layers of the atmosphere|troposphere|stratosphere|mesosphere|thermosphere|composition of the atmosphere|atmospheric layer|most abundant gas|nitrogen gas
+4.5|global wind|coriolis|hadley|ferrel|trade wind|westerlies|jet stream|convection cell|belt of winds|prevailing wind|descending air|wind pattern
+4.6|watershed|drainage basin|downstream|stream network|tributar|surface runoff|water flow|floodplain
+4.7|seasons?|axial tilt|axis tilt|tilt of|solstice|equinox|angle of incidence|angle of sunlight|solar radiation|insolation|day length|latitude|sunlight
+4.8|rain shadow|orographic|leeward|windward|mountain range|ocean current|regional climate|continental climate|coastal climate|climate pattern|geography
+4.9|el ni[ñn]o|la ni[ñn]a|ENSO|eastern pacific|western pacific|peruvian upwelling|upwelling|sea.surface temperature
+5.1|tragedy of the commons|common resource|public grazing|shared resource|open.access|commons
+5.2|clear.cut|removing all trees|deforestation|timber harvest|logging
+5.3|green revolution|high.yield variet|high.yield crop|hybrid seeds|selective breeding|mechanization|crop yields|synthetic fertilizer
+5.4|agricultural practice|slash.and.burn|tilling|tillage|monocultur|soil compaction|fertilizer runoff|industrial farm|soil degradation|agricultur
+5.5|irrigation|saliniz|waterlogging|drip system|center.pivot|furrow|flood irrigation|groundwater withdrawal|aquifer|water withdrawal|water use
+5.6|pesticide|herbicide|insecticide|pesticide treadmill|pest resistance|pest control|broad.spectrum|genetically modified|\bBt\b
+5.7|meat production|concentrated animal feeding|\bCAFO|grazing|feedlot|beef|livestock|animal protein|overgrazing|manure
+5.8|overfish|fishery|fisheries|fish stocks|bycatch|fishing quota|maximum sustainable yield|bottom trawl|fish catch
+5.9|strip min|surface min|open.pit|mountaintop removal|acid mine drain|tailings|mining|mine reclamation|mineral extraction|overburden|ore
+5.10|urbanization|urban sprawl|urban heat island|impervious|pavement|city growth|suburban development|stormwater runoff|urban development
+5.11|ecological footprint|global hectares|land area needed|resource footprint|consumption footprint|carbon footprint
+5.12|sustainab|future generations|renewable resource|sustainable yield|long.term availability
+5.13|reduce urban runoff|permeable pavement|pervious|rain garden|green roof|stormwater management|retention pond|bioswale|increase infiltration|stormwater
+5.14|integrated pest|biological control|natural predators|pheromone|pest threshold|release.*predator|ladybug|pest management|pest population
+5.15|sustainable agriculture|crop rotation|contour plow|terrac|no.till|intercropping|cover crop|windbreak|strip cropping|buffer strip|conservation tillage|agroforestry|organic farm
+5.16|aquaculture|fish farm|sea pens|farmed fish|farm.raised|fish farming|fish farming pens
+5.17|sustainable forestry|selective cut|shelterwood|seed tree|reforest|prescribed burn|tree plantations|forest management|sustainable logging
+6.1|renewable energy|nonrenewable|renewable resource|exhaustible|replenish|finite supply
+6.2|global energy|energy consumption|energy use|energy production|energy demand|electricity generation|electricity production|net energy|kilowatt.hour|\bGWh\b|\bBTU\b
+6.3|fuel type|fuel uses|energy density|oil refinery|grade of coal|anthracite|bituminous|peat|lignite|gasoline|diesel|source of fuel
+6.4|reserves|energy resource distribution|oil deposit|coal deposit|geographic distribution|oil field|shale formation|coal formation|fossil fuel formation|natural gas supply
+6.5|fossil fuel|coal.fired|natural gas|fracking|hydraulic fracturing|petroleum|oil sand|methane leak|coal|combustion
+6.6|nuclear|fission|uranium|radioactive|half.life|spent fuel|reactor|control rod|meltdown|plutonium|fusion
+6.7|biomass|biofuel|ethanol|biodiesel|wood combustion|biogas|algae fuel|switchgrass|crop residues|firewood
+6.8|solar energy|photovoltaic|solar panel|passive solar|active solar|concentrated solar|solar cell|solar power|thermal collector
+6.9|hydroelectric|dam|reservoir generation|water turbine|fish ladder|hydropower|impoundment|tidal power
+6.10|geothermal|earth.s heat|hot springs|underground steam|heat pump
+6.11|fuel cell|hydrogen fuel|hydrogen.*oxygen|hydrogen power|electrolysis
+6.12|wind turbine|wind power|wind energy|wind farm|blade strikes|turbine siting
+6.13|energy conservation|energy efficiency|cogeneration|combined heat|energy star|led bulb|insulation|fuel economy|miles per gallon|energy reduction|appliance|compact fluorescent
+7.1|criteria pollutant|primary pollutant|secondary pollutant|carbon monoxide|nitrogen oxides|sulfur dioxide|ambient air|air pollution|combustion|Clean Air Act
+7.2|photochemical smog|ground.level ozone|tropospheric ozone|volatile organic|\bVOC|sunlight.*ozone|\bsmog\b|ozone formation
+7.3|thermal inversion|temperature inversion|inversion layer|cold air.*warm air|warm air.*cool air|pollutants trapped|inversion
+7.4|particulate|aerosol|\bPM2|\bPM10|dust|soot|smoke|atmospheric carbon dioxide
+7.5|indoor air|radon|asbestos|formaldehyde|sick building|poor ventilation|wood.burning stove|carbon monoxide poisoning
+7.6|catalytic convert|scrubber|electrostatic precipitat|baghouse|vapor recovery|low.sulfur|pollution control device|reduce air pollution|emission controls|fluidized bed
+7.7|acid rain|acid deposition|acid precipitation|sulfuric acid|nitric acid|acidification of lakes|sulfate|\bpH\b.*rain
+7.8|noise pollution|decibel|noise level|sound intensity|noise|hearing loss
+8.1|point source|nonpoint|non.point|pollution source|pollutant source|effluent pipe|oil spill|agricultural runoff|contaminant|turbidity
+8.2|dead zone|biochemical oxygen|biological oxygen|\bBOD\b|dissolved oxygen|water quality|oxygen sag|sediment pollution|heavy metal|water pollution|pollutant
+8.3|endocrine|hormone|estrogen|intersex|bisphenol|phthalate|reproductive abnormalities
+8.4|mangrove|wetland|marsh|swamp|wetland drainage|coastal flood|nursery habitat
+8.5|eutroph|algal bloom|nutrient enrichment|hypoxi|fertilizer runoff|nutrient runoff|anoxia|phosphorus loading|algae growth
+8.6|thermal pollution|heated water|cooling tower|warm water discharge|cooling water|water temperature|temperature of the water
+8.7|persistent organic|\bPOPs\b|\bPCB|\bDDT\b|dioxin|persistent pesticide|long.range transport
+8.8|biomagnif|bioaccumul|concentration.*trophic|mercury.*fish|highest.*concentration|fat tissues|consumers.*mercury
+8.9|landfill|solid waste disposal|incinerat|leachate|landfill gas|hazardous waste|municipal solid waste|\bRCRA\b|superfund|\bCERCLA\b
+8.10|waste reduction|recycl|reuse|compost|source reduction|reduce waste|life.cycle|e.waste|cradle.to
+8.11|sewage treatment|wastewater treatment|sewage|primary treatment|secondary treatment|tertiary treatment|activated sludge|septic|chlorination|settling tank|treatment plant
+8.12|lethal dose|\bLD\s*50\b|\bLC\s*50\b|dose.*kills|50 percent.*mortality|half.*population.*die
+8.13|dose.response|threshold dose|toxicity curve|no observed effect|response curve|exposure level|toxic dose|dose concentration|toxicity
+8.14|human health|carcinogen|cancer|lead poisoning|toxic exposure|risk assessment|asthma|respiratory illness|toxicant|health risk
+8.15|infectious disease|pathogen|malaria|cholera|lyme|dengue|west nile|zoonotic|tuberculosis|vector.borne|disease vector|infectious|mosquito
+9.1|stratospheric ozone|ozone layer|ozone depletion|ozone hole|chlorofluorocarbon|\bCFC|ultraviolet|\bUV.B|chlorine radical
+9.2|montreal protocol|ozone treaty|phase.out.*cfc|replac.*cfc|ozone.depleting substances|hydrofluorocarbon|\bHFC|\bHCFC
+9.3|greenhouse effect|infrared|long.wave|heat trapped|outgoing radiation|shortwave|radiative forcing|absorb.*heat|reradiat
+9.4|greenhouse gas|methane emissions|nitrous oxide|carbon dioxide emissions|atmospheric CO2|CO₂ concentration|global warming potential|keeling curve|carbon emissions|anthropogenic emissions
+9.5|climate change|global warming|sea.level rise|melting ice|retreat.*glacier|albedo|climate feedback|permafrost thaw|paris agreement|kyoto protocol|climate mitigation|global temperature
+9.6|ocean warming|coral bleaching|bleached coral|warmer ocean|ocean temperature|thermal expansion|ocean heat|marine heat wave|warmer waters
+9.7|ocean acidification|seawater pH|carbonate ions|calcium carbonate|carbonic acid|acidif|shell formation|acidic seawater|calcification
+9.8|invasive|nonnative|non.native|introduced species|alien species|exotic species|zebra mussel|kudzu|asian carp
+9.9|endangered species|endangered species act|\bCITES\b|threatened species|species recovery|minimum viable|captive breeding|extinction risk|endangered|extinction
+9.10|human impacts on biodiversity|habitat fragment|habitat loss|biodiversity loss|wildlife corridor|habitat destruction|habitat connectivity|HIPPCO|poaching|habitat conservation
