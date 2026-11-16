@@ -49,6 +49,7 @@ class Book:
     def __init__(self, path, scored=False):
         self.pdf = fitz.open(path)
         self.lines, self.numbers, self.choices, self.visuals, self.key = [], [], [], [], []
+        self.choice_block_tops = {}
         highlights = []
         for index, page in enumerate(self.pdf):
             offset = index * 1000
@@ -59,11 +60,16 @@ class Book:
                 if 65 <= x < 71 and 80 < y < 753 and re.fullmatch(r'\([A-E]\)', word):
                     self.choices.append((offset + y, word[1], offset + bottom))
             for block in page.get_text('dict', flags=fitz.TEXTFLAGS_TEXT)['blocks']:
+                choice_labels = []
                 for line in block.get('lines', []):
                     x, y, right, bottom = line['bbox']
                     text = normalize(''.join(s['text'] for s in line['spans']))
+                    if 65 <= x < 71 and re.match(r'^\([A-E]\)(?:\s|$)', text):
+                        choice_labels.append(offset + y)
                     if 81 < y < 755 and 34 <= x < 577 and text:
                         self.lines.append((offset + y, offset + bottom, x, right, text))
+                if len(choice_labels) == 1:
+                    self.choice_block_tops[round(choice_labels[0], 2)] = offset + block['bbox'][1]
             for item in page.get_image_info():
                 x, y, right, bottom = item['bbox']
                 if 81 < y < 750 and right - x > 4:
@@ -96,7 +102,7 @@ class Book:
     def images(self, start, end):
         return [item for item in self.visuals if start <= item[0] < end]
 
-    def image(self, content, left):
+    def image(self, content, left, bounds):
         parts = []
         first = int(min(y for y, *_ in content) // 1000)
         last = int(max(b for _, b, *_ in content) // 1000)
@@ -106,9 +112,11 @@ class Book:
                           if offset <= y < offset + 1000]
             if not page_items:
                 continue
-            top = max(80, min(y for y, _, _ in page_items) - 3)
-            bottom = min(756, max(b for _, b, _ in page_items) + 3)
+            top = max(80, min(y for y, _, _ in page_items) - 3, bounds[0] - offset)
+            bottom = min(756, max(b for _, b, _ in page_items) + 3, bounds[1] - offset)
             right = min(578, max(r for _, _, r in page_items) + 4)
+            if top >= bottom or left >= right:
+                continue
             pix = self.pdf[index].get_pixmap(matrix=fitz.Matrix(2, 2), clip=fitz.Rect(left, top, right, bottom), alpha=False)
             parts.append(Image.frombytes('RGB', (pix.width, pix.height), pix.samples))
         if not parts:
@@ -122,11 +130,32 @@ class Book:
         image.save(output, format='WEBP', quality=83, method=3)
         return 'data:image/webp;base64,' + base64.b64encode(output.getvalue()).decode()
 
-    def region(self, lines, visuals, left=34, force_image=False):
+    def region(self, lines, visuals, left=34, force_image=False, bounds=(-float('inf'), float('inf'))):
         text = line_text(lines)
         content = [line[:4] for line in lines] + visuals
-        picture = self.image(content, left) if content and (visuals or force_image) else None
+        picture = self.image(content, left, bounds) if content and (visuals or force_image) else None
         return {'text': text, **({'image': picture} if picture else {})}
+
+    def choice_boundaries(self, options, visuals, end):
+        """Find the top of each choice, including graphics above its letter."""
+        centers = [(top + bottom) / 2 for top, _, bottom in options]
+        boxes = [[(top, bottom) for top, bottom, left, right in visuals
+                  if left >= 82 and right - left > 3 and top <= center <= bottom
+                  and all(not top <= other <= bottom for other in centers if other != center)]
+                 for center in centers]
+        cuts = []
+        for index, (y, _, _) in enumerate(options):
+            block_top = self.choice_block_tops.get(round(y, 2), y)
+            top = min(y - 8, block_top - .8, *(left - .8 for left, _ in boxes[index]))
+            if index:
+                top = max(top, options[index - 1][2] + .3)
+                # A label can be printed on the previous page when its table
+                # starts on the next page. Leave the preceding table intact.
+                prior_edges = [bottom for _, bottom in boxes[index - 1] if bottom < y - .4]
+                if prior_edges:
+                    top = max(top, min(y - .2, max(prior_edges) + .3))
+            cuts.append(top)
+        return [*cuts, end]
 
     def extract(self, unit, guide, sets):
         assert len(self.numbers) == len(guide.key), (unit, 'booklet and guide length differ')
@@ -150,24 +179,27 @@ class Book:
                 context_visuals = self.images(context_start, stem_start)
                 assert context_lines or context_visuals, ('Missing source material', id)
                 contexts[id] = self.region(context_lines, context_visuals, force_image=True)
-            first_choice = ordered[0][0] - 8
+            visuals = self.images(stem_start, end - 6)
+            cuts = self.choice_boundaries(ordered, visuals, end - 6)
+            first_choice = cuts[0]
             stem_lines = self.span(stem_start, first_choice)
-            stem_visuals = [item for item in self.images(stem_start, end - 6)
+            stem_visuals = [item for item in visuals
                             if (item[0] + item[1]) / 2 < first_choice]
-            stem = self.region(stem_lines, stem_visuals, force_image=any(x >= 150 for _, _, x, _, _ in stem_lines))
-            stem['text'] = re.sub(rf'^{number}\.\s*', '', stem['text'])
+            stem = self.region(stem_lines, stem_visuals, force_image=any(x >= 150 for _, _, x, _, _ in stem_lines),
+                               bounds=(stem_start, first_choice))
+            stem['text'] = line_text([(*line[:4], re.sub(rf'^{number}\.\s*', '', line[4]) if line[2] < 45 else line[4])
+                                      for line in stem_lines])
             choices = []
             for j, (y, letter, bottom) in enumerate(ordered):
                 final = j + 1 == len(ordered)
-                limit = end - 6 if final else ordered[j + 1][0] - 8
-                lines = self.span(y - 8, limit)
-                start_visual = max(y - 10, (ordered[j - 1][0] + y) / 2) if j else y - 7
-                end_visual = limit if final else (y + ordered[j + 1][0]) / 2
-                visuals = [item for item in self.images(stem_start, end - 6)
-                           if start_visual <= (item[0] + item[1]) / 2 < end_visual]
+                top, limit = cuts[j:j+2]
+                lines = self.span(top, limit)
+                choice_visuals = [item for item in visuals if top <= (item[0] + item[1]) / 2 < limit]
                 if final:
-                    lines, visuals, context_start = self.finish_choice(lines, visuals, y, bottom)
-                choice = self.region(lines, visuals, left=84, force_image=any(x >= 140 for _, _, x, _, _ in lines))
+                    lines, choice_visuals, context_start = self.finish_choice(lines, choice_visuals, y, bottom)
+                    limit = min(limit, context_start + 2)
+                choice = self.region(lines, choice_visuals, left=84, force_image=any(x >= 140 for _, _, x, _, _ in lines),
+                                     bounds=(top, limit))
                 choice['text'] = line_text([(*line[:4], re.sub(rf'^\({letter}\)\s*', '', line[4]) if line[2] < 72 else line[4])
                                             for line in lines])
                 choices.append(choice)
@@ -178,7 +210,9 @@ class Book:
     def finish_choice(self, lines, visuals, y, bottom):
         # Final-option text continues at the option indent with normal line spacing.
         # Stop at the next paragraph or page, before inspecting the next stimulus.
-        end_of_text = bottom
+        center = (y + bottom) / 2
+        anchored_edges = [end for top, end, left, _ in visuals if left >= 82 and top <= center <= end]
+        end_of_text = max([bottom, *anchored_edges])
         option_lines = []
         for line in lines:
             top, end, x, *_ = line
